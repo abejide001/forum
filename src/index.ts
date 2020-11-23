@@ -10,7 +10,7 @@ import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql"
 import redis from "redis"
 import session from "express-session"
-
+import cors from "cors"
 
 const main = async () => {
     const orm = await MikroORM.init(microConfig)
@@ -19,7 +19,10 @@ const main = async () => {
     const app = express()
     let RedisStore = require('connect-redis')(session)
     let redisClient = redis.createClient()
-
+    app.use(cors({
+        origin: 'http://localhost:3000',
+        credentials: true,
+    }))
     app.use(
         session({
             name: "qid",
@@ -43,7 +46,7 @@ const main = async () => {
         context: ({ req, res }) => ({ em: orm.em, req, res })
     })
 
-    apolloServer.applyMiddleware({ app })
+    apolloServer.applyMiddleware({ app, cors: false })
     const port = 4000 || process.env.PORT
     app.listen(port, () => {
         console.log(`server started at ${port}`)
