@@ -1,15 +1,11 @@
+import { validateRegister } from './../utils/validateRegister';
 import { User } from './../entities/User';
 import { MyContext } from './../types';
-import { Resolver, Mutation, InputType, Field, Arg, Ctx, ObjectType, Query } from "type-graphql"
+import { Resolver, Mutation, Field, Arg, Ctx, ObjectType, Query } from "type-graphql"
 import argon2 from "argon2"
-
-@InputType()
-class UsernamePasswordInput {
-    @Field()
-    username: string
-    @Field()
-    password: string
-}
+import { UsernamePasswordInput } from './UsernamePasswordInput';
+import { sendEmail } from '../utils/sendEmai';
+import { v4 } from 'uuid';
 
 @ObjectType()
 class FieldError {
@@ -55,26 +51,24 @@ export class UserResolver {
                 }]
             }
         }
-        if (data.username.length <= 2) {
+
+        const checkEmail = await em.findOne(User, { email: data.email })
+        if (checkEmail) {
             return {
                 errors: [{
-                    field: 'username',
-                    message: 'length must be greater than 2'
+                    field: "email",
+                    message: "user already exist"
                 }]
             }
         }
-
-        if (data.password.length <= 2) {
+        const errors = validateRegister(data)
+        if (errors) {
             return {
-                errors: [{
-                    field: 'password',
-                    message: 'length must be greater than 2'
-                }]
+                errors
             }
         }
-
         const hashedPassword = await argon2.hash(data.password)
-        const user = em.create(User, { username: data.username, password: hashedPassword })
+        const user = em.create(User, { username: data.username, password: hashedPassword, email: data.email })
         await em.persistAndFlush(user)
         req.session!.userId = user.id
         return {
@@ -84,25 +78,26 @@ export class UserResolver {
 
     @Mutation(() => UserResponse)
     async login(
-        @Arg('data') data: UsernamePasswordInput,
+        @Arg('usernameOrEmail') usernameOrEmail: string,
+        @Arg('password') password: string,
         @Ctx() { em, req }: MyContext
     ): Promise<UserResponse> {
-        const user = await em.findOne(User, { username: data.username })
+        const user = await em.findOne(User, usernameOrEmail.includes('@') ? { email: usernameOrEmail } : { username: usernameOrEmail })
         if (!user) {
             return {
                 errors: [{
-                    field: 'username',
-                    message: 'invalid credentials'
+                    field: 'usernameOrEmail',
+                    message: 'Invalid credentials'
                 }]
             }
         }
 
-        const password = await argon2.verify(user.password, data.password)
-        if (!password) {
+        const validPassword = await argon2.verify(user.password, password)
+        if (!validPassword) {
             return {
                 errors: [{
                     field: 'password',
-                    message: 'invalid credentials'
+                    message: 'Invalid credentials'
                 }]
             }
         }
@@ -124,5 +119,20 @@ export class UserResolver {
             }
             resolve(true)
         }))
+    }
+
+    @Mutation(()=> Boolean)
+    async forgotPassword(
+        @Arg('email') email: string,
+        @Ctx() { em, redis } : MyContext
+    ) {
+        const user = await em.findOne(User, { email })
+        if (!user) {
+            return true
+        }
+        const token = v4()
+        await redis.set(`forget-password${token}`, user.id, 'ex', 1000 * 60 * 60 * 24 * 3) // 3 days
+        await sendEmail(email, `<a href="http://localhost:3000/change-password/${token} target="_blank"">reset password</a>`)
+        return true
     }
 }

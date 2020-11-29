@@ -22,7 +22,7 @@ const mikro_orm_config_1 = __importDefault(require("./mikro-orm.config"));
 const express_1 = __importDefault(require("express"));
 const apollo_server_express_1 = require("apollo-server-express");
 const type_graphql_1 = require("type-graphql");
-const redis_1 = __importDefault(require("redis"));
+const ioredis_1 = __importDefault(require("ioredis"));
 const express_session_1 = __importDefault(require("express-session"));
 const cors_1 = __importDefault(require("cors"));
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -30,14 +30,14 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
     yield orm.getMigrator().up();
     const app = express_1.default();
     let RedisStore = require('connect-redis')(express_session_1.default);
-    let redisClient = redis_1.default.createClient();
+    let redis = new ioredis_1.default();
     app.use(cors_1.default({
         origin: 'http://localhost:3000',
         credentials: true,
     }));
     app.use(express_session_1.default({
         name: "qid",
-        store: new RedisStore({ client: redisClient, disableTouch: true }),
+        store: new RedisStore({ client: redis, disableTouch: true }),
         secret: "pukas",
         resave: false,
         saveUninitialized: false,
@@ -53,7 +53,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             resolvers: [hello_1.HelloResolver, post_1.PostResolver, user_1.UserResolver],
             validate: false
         }),
-        context: ({ req, res }) => ({ em: orm.em, req, res })
+        context: ({ req, res }) => ({ em: orm.em, req, res, redis })
     });
     apolloServer.applyMiddleware({ app, cors: false });
     const port = 4000 || process.env.PORT;
