@@ -12,22 +12,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("reflect-metadata");
+const User_1 = require("./entities/User");
+const Post_1 = require("./entities/Post");
 const constants_1 = require("./constants");
 const user_1 = require("./resolvers/user");
 const post_1 = require("./resolvers/post");
-require("reflect-metadata");
 const hello_1 = require("./resolvers/hello");
-const core_1 = require("@mikro-orm/core");
-const mikro_orm_config_1 = __importDefault(require("./mikro-orm.config"));
 const express_1 = __importDefault(require("express"));
 const apollo_server_express_1 = require("apollo-server-express");
 const type_graphql_1 = require("type-graphql");
 const ioredis_1 = __importDefault(require("ioredis"));
 const express_session_1 = __importDefault(require("express-session"));
 const cors_1 = __importDefault(require("cors"));
+const typeorm_1 = require("typeorm");
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
-    const orm = yield core_1.MikroORM.init(mikro_orm_config_1.default);
-    yield orm.getMigrator().up();
+    const conn = yield typeorm_1.createConnection({
+        type: 'postgres',
+        database: 'lireddit2',
+        logging: true,
+        synchronize: true,
+        entities: [Post_1.Post, User_1.User]
+    });
     const app = express_1.default();
     let RedisStore = require('connect-redis')(express_session_1.default);
     let redis = new ioredis_1.default();
@@ -53,7 +59,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
             resolvers: [hello_1.HelloResolver, post_1.PostResolver, user_1.UserResolver],
             validate: false
         }),
-        context: ({ req, res }) => ({ em: orm.em, req, res, redis })
+        context: ({ req, res }) => ({ res, redis })
     });
     apolloServer.applyMiddleware({ app, cors: false });
     const port = 4000 || process.env.PORT;

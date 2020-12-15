@@ -109,9 +109,9 @@ export class UserResolver {
 
     @Mutation(() => Boolean)
     logout(
-        @Ctx(){ req, res }: MyContext
+        @Ctx() { req, res }: MyContext
     ) {
-       return new Promise(resolve => req.session?.destroy(err => {
+        return new Promise(resolve => req.session?.destroy(err => {
             res.clearCookie('qid')
             if (err) {
                 resolve(false)
@@ -121,10 +121,10 @@ export class UserResolver {
         }))
     }
 
-    @Mutation(()=> Boolean)
+    @Mutation(() => Boolean)
     async forgotPassword(
         @Arg('email') email: string,
-        @Ctx() { em, redis } : MyContext
+        @Ctx() { em, redis }: MyContext
     ) {
         const user = await em.findOne(User, { email })
         if (!user) {
@@ -134,5 +134,54 @@ export class UserResolver {
         await redis.set(`forget-password${token}`, user.id, 'ex', 1000 * 60 * 60 * 24 * 3) // 3 days
         await sendEmail(email, `<a href="http://localhost:3000/change-password/${token} target="_blank"">reset password</a>`)
         return true
+    }
+
+    @Mutation(() => UserResponse)
+    async changePassword(
+        @Arg('token') token: string,
+        @Arg('newPassword') newPassword: string,
+        @Ctx() { redis, em, req }: MyContext
+    ): Promise<UserResponse> {
+        if (newPassword.length <= 2) {
+            return {
+                errors: [
+                    {
+                        field: 'newPassword',
+                        message: 'length must be greater than 2'
+                    }
+                ]
+            }
+        }
+
+        const userId = await redis.get(`forget-password${token}`)
+        if (!userId) {
+            return {
+                errors: [
+                    {
+                        field: 'token',
+                        message: 'token expired'
+                    }
+                ]
+            }
+        }
+        const user = await em.findOne(User, { id: parseInt(userId) })
+        if (!user) {
+            return {
+                errors: [
+                    {
+                        field: 'token',
+                        message: 'user no longer exist'
+                    }
+                ]
+            }
+        }
+        user.password = await argon2.hash(newPassword)
+        
+        await em.persistAndFlush(user)
+        await redis.del(`forget-password${token}`)
+        req.session!.userId = user.id
+        return {
+            user
+        }
     }
 }
