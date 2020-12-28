@@ -15,6 +15,6 @@ exports.default = {
     entities: [Post_1.Post, User_1.User],
     dbName: 'lreddit',
     debug: !constants_1.__prod__,
-    type: 'postgresql'
+    type: 'postgresql',
 };
 //# sourceMappingURL=mikro-orm.config.js.map

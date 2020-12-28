@@ -5,7 +5,6 @@ import { __prod__ } from './constants';
 import { UserResolver } from './resolvers/user';
 import { PostResolver } from './resolvers/post';
 import { HelloResolver } from './resolvers/hello';
-import microConfig from "./mikro-orm.config"
 import express from "express"
 import { ApolloServer } from "apollo-server-express";
 import { buildSchema } from "type-graphql"
@@ -18,6 +17,8 @@ const main = async () => {
     const conn = await createConnection({
         type: 'postgres',
         database: 'lireddit2',
+        username: "postgres",
+        password: "postgres",
         logging: true,
         synchronize: true,
         entities: [Post, User]
