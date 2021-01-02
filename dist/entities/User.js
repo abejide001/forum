@@ -15,14 +15,14 @@ const typeorm_1 = require("typeorm");
 let User = class User extends typeorm_1.BaseEntity {
     constructor() {
         super(...arguments);
-        this.createdAt = Date;
+        this.createdAt = new Date();
         this.updatedAt = new Date();
     }
 };
 __decorate([
-    type_graphql_1.Field(),
+    type_graphql_1.Field(() => type_graphql_1.ID),
     typeorm_1.PrimaryGeneratedColumn(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], User.prototype, "id", void 0);
 __decorate([
     type_graphql_1.Field(() => String),

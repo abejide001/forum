@@ -51,7 +51,7 @@ const main = async () => {
             resolvers: [HelloResolver, PostResolver, UserResolver],
             validate: false
         }),
-        context: ({ req, res }) => ({ res, redis })
+        context: ({ req, res }) => ({ res, redis, req })
     })
 
     apolloServer.applyMiddleware({ app, cors: false })

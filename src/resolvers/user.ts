@@ -5,7 +5,6 @@ import { Resolver, Mutation, Field, Arg, Ctx, ObjectType, Query } from "type-gra
 import argon2 from "argon2"
 import { UsernamePasswordInput } from './UsernamePasswordInput';
 import { sendEmail } from '../utils/sendEmai';
-import { v4 } from 'uuid';
 
 @ObjectType()
 class FieldError {
@@ -69,8 +68,10 @@ export class UserResolver {
         }
         const hashedPassword = await argon2.hash(data.password)
         const user = User.create({ username: data.username, password: hashedPassword, email: data.email })
-        await User.create(user).save()
+        await user.save()
+       
         req.session!.userId = user.id
+    
         return {
             user
         }

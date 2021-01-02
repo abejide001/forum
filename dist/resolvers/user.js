@@ -31,7 +31,6 @@ const type_graphql_1 = require("type-graphql");
 const argon2_1 = __importDefault(require("argon2"));
 const UsernamePasswordInput_1 = require("./UsernamePasswordInput");
 const sendEmai_1 = require("../utils/sendEmai");
-const uuid_1 = require("uuid");
 let FieldError = class FieldError {
 };
 __decorate([
@@ -96,7 +95,7 @@ let UserResolver = class UserResolver {
             }
             const hashedPassword = yield argon2_1.default.hash(data.password);
             const user = User_1.User.create({ username: data.username, password: hashedPassword, email: data.email });
-            yield User_1.User.create(user).save();
+            yield user.save();
             req.session.userId = user.id;
             return {
                 user
@@ -145,7 +144,7 @@ let UserResolver = class UserResolver {
             if (!user) {
                 return true;
             }
-            const token = uuid_1.v4();
+            const token = v4();
             yield redis.set(`forget-password${token}`, user.id, 'ex', 1000 * 60 * 60 * 24 * 3);
             yield sendEmai_1.sendEmail(email, `<a href="http://localhost:3000/change-password/${token} target="_blank"">reset password</a>`);
             return true;
