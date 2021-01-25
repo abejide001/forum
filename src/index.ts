@@ -1,65 +1,69 @@
-import "reflect-metadata"
-import { User } from './entities/User';
-import { Post } from './entities/Post';
-import { __prod__ } from './constants';
-import { UserResolver } from './resolvers/user';
-import { PostResolver } from './resolvers/post';
-import { HelloResolver } from './resolvers/hello';
-import express from "express"
+import "reflect-metadata";
+import { User } from "./entities/User";
+import { Post } from "./entities/Post";
+import { __prod__ } from "./constants";
+import { UserResolver } from "./resolvers/user";
+import { PostResolver } from "./resolvers/post";
+import { HelloResolver } from "./resolvers/hello";
+import express from "express";
 import { ApolloServer } from "apollo-server-express";
-import { buildSchema } from "type-graphql"
-import Redis from "ioredis"
-import session from "express-session"
-import cors from "cors"
-import { createConnection } from "typeorm"
+import { buildSchema } from "type-graphql";
+import Redis from "ioredis";
+import session from "express-session";
+import cors from "cors";
+import path from "path"
+import { createConnection } from "typeorm";
 
 const main = async () => {
-    const conn = await createConnection({
-        type: 'postgres',
-        database: 'lireddit2',
-        username: "postgres",
-        password: "postgres",
-        logging: true,
-        synchronize: true,
-        entities: [Post, User]
+  const conn = await createConnection({
+    type: "postgres",
+    database: "lireddit2",
+    username: "postgres",
+    password: "postgres",
+    logging: true,
+    synchronize: true,
+    migrations: [path.join(__dirname, "./migrations/1611514630772-FakePosts.ts")],
+    entities: [Post, User],
+  });
+  conn.runMigrations()
+  const app = express();
+  let RedisStore = require("connect-redis")(session);
+  let redis = new Redis();
+  app.use(
+    cors({
+      origin: "http://localhost:3000",
+      credentials: true,
     })
-    
-    const app = express()
-    let RedisStore = require('connect-redis')(session)
-    let redis = new Redis()
-    app.use(cors({
-        origin: 'http://localhost:3000',
-        credentials: true,
-    }))
-    app.use(
-        session({
-            name: "qid",
-            store: new RedisStore({ client: redis, disableTouch: true }),
-            secret: "pukas",
-            resave: false,
-            saveUninitialized: false,
-            cookie: {
-                maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
-                httpOnly: true,
-                sameSite: 'lax',
-                secure: __prod__ // cookie only works in https
-            }
-        }),
-    )
-    const apolloServer = new ApolloServer({
-        schema: await buildSchema({
-            resolvers: [HelloResolver, PostResolver, UserResolver],
-            validate: false
-        }),
-        context: ({ req, res }) => ({ res, redis, req })
+  );
+  app.use(
+    session({
+      name: "qid",
+      store: new RedisStore({ client: redis, disableTouch: true }),
+      secret: "pukas",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 10, // 10 years
+        httpOnly: true,
+        sameSite: "lax",
+        secure: __prod__, // cookie only works in https
+      },
     })
+  );
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [HelloResolver, PostResolver, UserResolver],
+      validate: false,
+    }),
+    context: ({ req, res }) => ({ res, redis, req, conn }),
+  });
 
-    apolloServer.applyMiddleware({ app, cors: false })
-    const port = 4000 || process.env.PORT
-    app.listen(port, () => {
-        console.log(`server started at ${port}`)
-    })
-}
-main().catch(err => {
-    console.log(err)
-})
+  apolloServer.applyMiddleware({ app, cors: false });
+  const port = 4000 || process.env.PORT;
+  app.listen(port, () => {
+    console.log(`server started at ${port}`);
+  });
+};
+main().catch((err) => {
+  console.log(err);
+});

@@ -25,22 +25,25 @@ const type_graphql_1 = require("type-graphql");
 const ioredis_1 = __importDefault(require("ioredis"));
 const express_session_1 = __importDefault(require("express-session"));
 const cors_1 = __importDefault(require("cors"));
+const path_1 = __importDefault(require("path"));
 const typeorm_1 = require("typeorm");
 const main = () => __awaiter(void 0, void 0, void 0, function* () {
     const conn = yield typeorm_1.createConnection({
-        type: 'postgres',
-        database: 'lireddit2',
+        type: "postgres",
+        database: "lireddit2",
         username: "postgres",
         password: "postgres",
         logging: true,
         synchronize: true,
-        entities: [Post_1.Post, User_1.User]
+        migrations: [path_1.default.join(__dirname, "./migrations/1611514630772-FakePosts.ts")],
+        entities: [Post_1.Post, User_1.User],
     });
+    conn.runMigrations();
     const app = express_1.default();
-    let RedisStore = require('connect-redis')(express_session_1.default);
+    let RedisStore = require("connect-redis")(express_session_1.default);
     let redis = new ioredis_1.default();
     app.use(cors_1.default({
-        origin: 'http://localhost:3000',
+        origin: "http://localhost:3000",
         credentials: true,
     }));
     app.use(express_session_1.default({
@@ -52,16 +55,16 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         cookie: {
             maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
             httpOnly: true,
-            sameSite: 'lax',
-            secure: constants_1.__prod__
-        }
+            sameSite: "lax",
+            secure: constants_1.__prod__,
+        },
     }));
     const apolloServer = new apollo_server_express_1.ApolloServer({
         schema: yield type_graphql_1.buildSchema({
             resolvers: [hello_1.HelloResolver, post_1.PostResolver, user_1.UserResolver],
-            validate: false
+            validate: false,
         }),
-        context: ({ req, res }) => ({ res, redis, req })
+        context: ({ req, res }) => ({ res, redis, req, conn }),
     });
     apolloServer.applyMiddleware({ app, cors: false });
     const port = 4000 || process.env.PORT;
@@ -69,7 +72,7 @@ const main = () => __awaiter(void 0, void 0, void 0, function* () {
         console.log(`server started at ${port}`);
     });
 });
-main().catch(err => {
+main().catch((err) => {
     console.log(err);
 });
 //# sourceMappingURL=index.js.map
